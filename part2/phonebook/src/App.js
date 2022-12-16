@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import PersonForm from './components/PersonForm'
 import Filter from './components/Filter'
 import Persons from './components/Persons'
+import Notification from './components/Notification'
 import phonebookService from './services/phonebook'
 
 const App = () => {
@@ -10,6 +11,8 @@ const App = () => {
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filter, setFilter] = useState('')
+  const [notifMessage, setNotifMessage] = useState(null)
+
 
   // load data from server
   useEffect(() => {
@@ -45,6 +48,12 @@ const App = () => {
           setNewName('')
           setNewNumber('')
         })
+        .catch(error => {
+          setNotifMessage(`Information of ${updatedContact.name} has already been removed from server`)
+          setTimeout( () => {
+            setNotifMessage(null)
+          }, 5000)
+        })
       }
     } else {
       phonebookService
@@ -53,6 +62,10 @@ const App = () => {
         setContacts(contacts.concat(returnedNumber))
         setNewName('')
         setNewNumber('')
+        setNotifMessage(`Added ${returnedNumber.name}`)
+        setTimeout( () => {
+          setNotifMessage(null)
+        }, 5000)
       })
     }
   }
@@ -89,6 +102,7 @@ const App = () => {
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={notifMessage} />
       <Filter
         filter={filter}
         filterChange={handleFilterChange}
