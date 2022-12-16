@@ -1,19 +1,26 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import PersonForm from './components/PersonForm'
 import Filter from './components/Filter'
 import Persons from './components/Persons'
+import phonebookService from './services/phonebook'
 
 const App = () => {
-  const [persons, setPersons] = useState([
-    { name: 'Arto Hellas', number: '040-123456', id: 1 },
-    { name: 'Ada Lovelace', number: '39-44-5323523', id: 2 },
-    { name: 'Dan Abramov', number: '12-43-234345', id: 3 },
-    { name: 'Mary Poppendieck', number: '39-23-6423122', id: 4 }
-  ]) 
+  // state variables
+  const [contacts, setContacts] = useState([])
   const [newName, setNewName] = useState('')
   const [newNumber, setNewNumber] = useState('')
   const [filter, setFilter] = useState('')
 
+  // load data from server
+  useEffect(() => {
+    phonebookService
+      .getAll()
+      .then(initialPhonebook => {
+        setContacts(initialPhonebook)
+      })
+  }, [])
+
+  // add a new number when the form is submitted (only if it does not already exist)
   const addNumber = (event) => {
     event.preventDefault()
     const numberObject = {
@@ -22,36 +29,62 @@ const App = () => {
     }
 
     let hasName = false
-    persons.forEach(person => {
+    contacts.forEach(person => {
       if (person.name === newName)
       hasName = true
     })
   
     if (hasName) {
-      window.alert(`${newName} is already added to phonebook`)
+      const contact = contacts.find(n => n.name === newName)
+      if (window.confirm(`${contact.name} is already added to phonebook, replace the old number with a new one?`)) {
+        const updatedContact = { ... contact, number: newNumber }
+        phonebookService
+        .update(updatedContact.id, updatedContact)
+        .then( returnedContact => {
+          setContacts(contacts.map(n => n.id !== updatedContact.id ? n : returnedContact))
+          setNewName('')
+          setNewNumber('')
+        })
+      }
     } else {
-      setPersons(persons.concat(numberObject))
-      setNewName('')
-      setNewNumber('')
+      phonebookService
+      .create(numberObject)
+      .then(returnedNumber => {
+        setContacts(contacts.concat(returnedNumber))
+        setNewName('')
+        setNewNumber('')
+      })
     }
   }
 
+  // remove a contact from server
+  const removeContact = (id) => {
+    const contact = contacts.find(n => n.id === id)
+    
+    if (window.confirm(`Delete ${contact.name}?`)) {
+      phonebookService
+      .remove(id)
+      .then(setContacts(contacts.filter(n => n.id !== id)))
+    }
+  }
+
+  // maintain the next name to state
   const handleNameChange = (event) => {
-    console.log(event.target.value)
     setNewName(event.target.value)
   }
 
+  // maintain the next number to state
   const handleNumberChange = (event) => {
-    console.log(event.target.value)
     setNewNumber(event.target.value)
   }
 
+  // update the state of the filter
   const handleFilterChange = (event) => {
-    console.log(event.target.value)
     setFilter(event.target.value.toLowerCase())
   }
 
-  const personsToShow = persons.filter(person => person.name.toLowerCase().includes(filter))
+  // filter contacts by what's typed in the filter input
+  const contactsToShow = contacts.filter(person => person.name.toLowerCase().includes(filter))
 
   return (
     <div>
@@ -71,7 +104,12 @@ const App = () => {
       />
 
       <h2>Numbers</h2>
-      <Persons persons={personsToShow} />
+      {contactsToShow.map(person => 
+        <Persons
+          key={person.id} 
+          person={person}
+          removeContact={() => removeContact(person.id)}/>
+      )}
     </div>
   )
 }
